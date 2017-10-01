@@ -1,0 +1,59 @@
+unlocker.py script did not work (for me), but the code for unlocking device based on IMEI did.
+Therefore the procedure to unlock huawei (Tested succesfully) was as follows:
+
+1) Connect to modem (As root)
+$ minicom -s
+
+2) Configure
+First thing is to change the port to /dev/ttyUSB0. So press A and change the /dev/tty0 to /dev/ttyUSB0
+Next, we need to change the Baud Rate, paritiy and bits to 9600,N,8 (respectively). To do this, press E
+Press Enter to complete the Serial port Setup.
+Now select Exit to exit the configuration menu.
+
+Note, this is Exit and NOT Exit from minicom option.
+
+3) Test connection
+AT
+> should reply OK
+* Turn echo on
+ATE1
+* Test that unlock is possible
+AT^CARDLOCK?
+> first digit:
+#            0 = unobtainable
+#            1 = locked but can be unlocked
+#            2 = unlocked to the inserted sim
+#            3 = locked and cannot be unlocked
+> 2nd digit:
+# number of unlocking attempts left
+> 3rd digit: carrier
+
+If 1, cont
+
+3a) run python in interactive shell, command after another
+$ python
+import hashlib
+
+imei = "xxxx"
+
+def computeUnlockCode(imei):
+        salt = '5e8dd316726b0335'
+        digest = hashlib.md5((imei+salt).lower()).digest()
+        code = 0
+        for i in range(0,4):
+                code += (ord(digest[i])^ord(digest[4+i])^ord(digest[8+i])^ord(digest[12+i])) << (3-i)*8
+        code &= 0x1ffffff
+        code |= 0x2000000
+        return code
+
+computeUnlockCode(imei)
+=> prints unlock code
+
+or
+3b) run simplified unlock.py
+$ python unlock.py <imei>
+=> prints unlock code
+
+4) Unlock (at minicom session)
+AT^CARDLOCK="unlockcode"
+
